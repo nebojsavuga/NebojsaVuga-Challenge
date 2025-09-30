@@ -9,7 +9,7 @@ export const createHero = (
   const tx = new Transaction();
 
   tx.moveCall({
-    target: `${packageId}::arena::create_hero`,
+    target: `${packageId}::hero::create_hero`,
     typeArguments: [],
     arguments: [
       tx.pure.string(name),
