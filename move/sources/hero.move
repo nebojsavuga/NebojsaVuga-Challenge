@@ -34,6 +34,10 @@ public fun create_hero(name: String, image_url: String, power: u64, ctx: &mut Tx
     transfer::freeze_object(heroMetadata);
 }
 
+public fun change_image_url(hero: &mut Hero, new_url: String) {
+    hero.image_url = new_url;
+}
+
 // ========= GETTER FUNCTIONS =========
 
 public fun hero_power(hero: &Hero): u64 {

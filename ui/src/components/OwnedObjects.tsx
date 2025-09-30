@@ -22,6 +22,7 @@ import { transferHero } from "../utility/helpers/transfer_hero";
 import { listHero } from "../utility/marketplace/list_hero";
 import { createArena } from "../utility/arena/create_arena";
 import { RefreshProps } from "../types/props";
+import { updateHeroImage } from "../utility/heroes/update_hero_image";
 
 export function OwnedObjects({ refreshKey, setRefreshKey }: RefreshProps) {
   const account = useCurrentAccount();
@@ -41,7 +42,8 @@ export function OwnedObjects({ refreshKey, setRefreshKey }: RefreshProps) {
   const [copiedStates, setCopiedStates] = useState<{ [key: string]: boolean }>(
     {},
   );
-
+  const [newImageUrl, setNewImageUrl] = useState<{ [key: string]: string }>({});
+  const [isUpdatingImage, setIsUpdatingImage] = useState<{ [key: string]: boolean }>({});
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
 
   const { data, isPending, error } = useSuiClientQuery(
@@ -157,6 +159,35 @@ export function OwnedObjects({ refreshKey, setRefreshKey }: RefreshProps) {
     );
   };
 
+  const handleUpdateImage = (heroId: string, url: string) => {
+    if (!url.trim() || !packageId) return;
+
+    setIsUpdatingImage((prev) => ({ ...prev, [heroId]: true }));
+
+    const tx = updateHeroImage(packageId, heroId, url);
+    signAndExecute(
+      { transaction: tx },
+      {
+        onSuccess: async ({ digest }) => {
+          await suiClient.waitForTransaction({
+            digest,
+            options: {
+              showEffects: true,
+              showObjectChanges: true,
+            },
+          });
+
+          setNewImageUrl((prev) => ({ ...prev, [heroId]: "" }));
+          setRefreshKey(refreshKey + 1);
+          setIsUpdatingImage((prev) => ({ ...prev, [heroId]: false }));
+        },
+        onError: () => {
+          setIsUpdatingImage((prev) => ({ ...prev, [heroId]: false }));
+        },
+      },
+    );
+  };
+
   if (!account) {
     return (
       <Card>
@@ -251,6 +282,7 @@ export function OwnedObjects({ refreshKey, setRefreshKey }: RefreshProps) {
                       <Tabs.Trigger value="transfer">Transfer</Tabs.Trigger>
                       <Tabs.Trigger value="list">List for Sale</Tabs.Trigger>
                       <Tabs.Trigger value="battle">Battle</Tabs.Trigger>
+                      <Tabs.Trigger value="updateImage">Update Image</Tabs.Trigger>
                     </Tabs.List>
 
                     <Tabs.Content value="transfer">
@@ -324,6 +356,28 @@ export function OwnedObjects({ refreshKey, setRefreshKey }: RefreshProps) {
                           {isCreatingBattle[heroId]
                             ? "Creating Arena..."
                             : "Create Arena"}
+                        </Button>
+                      </Flex>
+                    </Tabs.Content>
+                    <Tabs.Content value="updateImage">
+                      <Flex direction="column" gap="2" mt="3">
+                        <TextField.Root
+                          placeholder="New Image URL"
+                          value={newImageUrl[heroId] || ""}
+                          onChange={(e) =>
+                            setNewImageUrl((prev) => ({
+                              ...prev,
+                              [heroId]: e.target.value,
+                            }))
+                          }
+                        />
+                        <Button
+                          onClick={() => handleUpdateImage(heroId, newImageUrl[heroId])}
+                          disabled={!newImageUrl[heroId]?.trim() || isUpdatingImage[heroId]}
+                          loading={isUpdatingImage[heroId]}
+                          color="purple"
+                        >
+                          {isUpdatingImage[heroId] ? "Updating..." : "Update Image"}
                         </Button>
                       </Flex>
                     </Tabs.Content>
